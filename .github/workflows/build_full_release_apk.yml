@@ -93,6 +93,9 @@ jobs:
             echo "list=assemble$VARIANT" >> $GITHUB_OUTPUT
           fi
 
+      - name: Beri izin eksekusi gradlew
+        run: chmod +x ./gradlew
+
       - name: Assemble Release APK
         run: |
           ./gradlew ${{ steps.tasks.outputs.list }} \
