@@ -52,10 +52,10 @@
 	url = https://github.com/KhronosGroup/OpenXR-SDK.git
 [submodule "ios/MoltenVK"]
 	path = ios/MoltenVK
-	url = https://github.com/hrydgard/suikaemulator-moltenvk.git
+	url = https://github.com/hrydgard/ppsspp-moltenvk.git
 [submodule "ext/lua"]
 	path = ext/lua
-	url = https://github.com/hrydgard/suikaemulator-lua.git
+	url = https://github.com/hrydgard/ppsspp-lua.git
 [submodule "ext/freetype"]
 	path = ext/freetype
 	url = https://github.com/hrydgard/freetype.git
@@ -65,10 +65,10 @@
 [submodule "ext/aemu_postoffice"]
 	path = ext/aemu_postoffice
 	url = https://github.com/Kethen/aemu_postoffice.git
-	branch = suikaemulator
+	branch = ppsspp
 [submodule "frametests"]
 	path = frametests
-	url = https://github.com/hrydgard/suikaemulator-frametest-ci.git
+	url = https://github.com/hrydgard/ppsspp-frametest-ci.git
 [submodule "ext/oboe"]
 	path = ext/oboe
 	url = https://github.com/google/oboe.git

@@ -34,6 +34,27 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
+      # Zip/upload lewat browser tidak membawa isi submodule, jadi folder seperti ext/glslang,
+      # ext/freetype, ffmpeg dll kosong. Langkah ini mengunduh semuanya sesuai .gitmodules.
+      - name: Ambil submodule yang kosong
+        shell: bash
+        run: |
+          set -e
+          SKIP="ios/MoltenVK SDL/macOS frametests pspautotests"
+          git config -f .gitmodules --get-regexp '\.path$' | while read -r key path; do
+            name="${key#submodule.}"; name="${name%.path}"
+            case " $SKIP " in *" $path "*) continue;; esac
+            if [ -n "$(ls -A "$path" 2>/dev/null)" ]; then continue; fi
+            url=$(git config -f .gitmodules "submodule.$name.url")
+            branch=$(git config -f .gitmodules "submodule.$name.branch" || true)
+            echo "Clone $path <- $url ${branch:+(branch $branch)}"
+            rm -rf "$path"
+            git clone --depth 1 --recurse-submodules --shallow-submodules ${branch:+-b "$branch"} "$url" "$path"
+          done
+          for d in ffmpeg ext/glslang ext/freetype ext/armips ext/cpu_features ext/libadrenotools ext/lua; do
+            echo "$d: $(ls -A "$d" | wc -l) file"
+          done
+
       - name: Check Valid Version Tags
         id: valid-tags
         shell: bash
