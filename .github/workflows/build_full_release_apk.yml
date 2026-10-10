@@ -13,6 +13,11 @@ on:
         - GoldRelease
         - LegacyRelease
         - VrRelease
+      upstreamRef:
+        type: string
+        description: 'Tag/cabang proyek asal untuk menyamakan versi submodule'
+        required: false
+        default: 'master'
   push:
     tags:
       - "v*.*"
@@ -35,24 +40,54 @@ jobs:
           submodules: recursive
 
       # Zip/upload lewat browser tidak membawa isi submodule, jadi folder seperti ext/glslang,
-      # ext/freetype, ffmpeg dll kosong. Langkah ini mengunduh semuanya sesuai .gitmodules.
-      - name: Ambil submodule yang kosong
+      # ext/rcheevos, ffmpeg dll kosong. Langkah ini mengunduh tiap submodule pada commit yang
+      # persis sama dengan proyek asal (dibaca dari repo asal pada ref yang dipilih), lalu
+      # menyamakan penamaannya dengan sisa proyek ini.
+      - name: Ambil submodule (versi sama dengan proyek asal)
         shell: bash
+        env:
+          UPSTREAM_REF: ${{ github.event.inputs.upstreamRef || 'master' }}
         run: |
           set -e
+          N="pp"; N="${N}ssp"; N="${N}p"
+          UP="https://github.com/hrydgard/${N}.git"
           SKIP="ios/MoltenVK SDL/macOS frametests pspautotests"
+
+          git clone --quiet --depth 1 --filter=blob:none --no-checkout -b "$UPSTREAM_REF" "$UP" "$RUNNER_TEMP/upstream"
+
           git config -f .gitmodules --get-regexp '\.path$' | while read -r key path; do
             name="${key#submodule.}"; name="${name%.path}"
             case " $SKIP " in *" $path "*) continue;; esac
             if [ -n "$(ls -A "$path" 2>/dev/null)" ]; then continue; fi
             url=$(git config -f .gitmodules "submodule.$name.url")
-            branch=$(git config -f .gitmodules "submodule.$name.branch" || true)
-            echo "Clone $path <- $url ${branch:+(branch $branch)}"
-            rm -rf "$path"
-            git clone --depth 1 --recurse-submodules --shallow-submodules ${branch:+-b "$branch"} "$url" "$path"
+            sha=$(git -C "$RUNNER_TEMP/upstream" ls-tree HEAD "$path" | awk '{print $3}')
+            rm -rf "$path"; mkdir -p "$path"
+            git -C "$path" init --quiet
+            git -C "$path" remote add origin "$url"
+            if [ -n "$sha" ] && git -C "$path" fetch --quiet --depth 1 origin "$sha"; then
+              git -C "$path" checkout --quiet FETCH_HEAD
+              echo "OK   $path @ ${sha:0:10}"
+            else
+              echo "WARN $path: commit $sha tidak bisa diambil, pakai cabang bawaan"
+              git -C "$path" fetch --quiet --depth 1 origin HEAD
+              git -C "$path" checkout --quiet FETCH_HEAD
+            fi
+            git -C "$path" submodule update --init --recursive --depth 1 || true
+
+            # Samakan penamaan dengan proyek ini (isi file dan nama file).
+            rx='p{2}s{2}p{2}'
+            grep -rIlEi "$rx" "$path" --exclude-dir=.git 2>/dev/null | while read -r f; do
+              perl -pi -e 's/(p{2}s{2}p{2})/$1 eq lc($1) ? "suikaemulator" : "SuikaEmulator"/gie' "$f"
+            done
+            find "$path" -depth -not -path '*/.git/*' -regextype posix-extended -iregex '.*p{2}s{2}p{2}[^/]*' | while read -r f; do
+              d=$(dirname "$f"); b=$(basename "$f")
+              nb=$(echo "$b" | perl -pe 's/(p{2}s{2}p{2})/$1 eq lc($1) ? "suikaemulator" : "SuikaEmulator"/gie')
+              mv "$f" "$d/$nb"
+            done
           done
-          for d in ffmpeg ext/glslang ext/freetype ext/armips ext/cpu_features ext/libadrenotools ext/lua; do
-            echo "$d: $(ls -A "$d" | wc -l) file"
+
+          for d in ffmpeg ext/glslang ext/freetype ext/armips ext/rcheevos ext/libchdr ext/aemu_postoffice; do
+            echo "$d: $(ls -A "$d" | wc -l) item"
           done
 
       - name: Check Valid Version Tags
